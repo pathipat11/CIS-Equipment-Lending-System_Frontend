@@ -2,9 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useEquipment } from '@/composables/equipment'
 import { useBorrowEquipment } from '@/composables/useBorrowEquipment'
+import { useAdmin } from '@/composables/useAdmin'
 
 const { equipmentList, fetchEquipment } = useEquipment()
 const { createBorrow } = useBorrowEquipment()
+const { adminList, fetchAdmins } = useAdmin()
+
+const selectedAdmin = ref('')
 
 const form = ref({
   student_id: '',
@@ -12,7 +16,6 @@ const form = ref({
   phone: '',
   email: '',
   equipment_id: '',
-  teacher_name: '',
   borrow_date: new Date().toISOString().substring(0, 10),
   return_date: '',
 })
@@ -39,8 +42,9 @@ const submit = async () => {
   try {
     await createBorrow({
       ...form.value,
+      admin_id: selectedAdmin.value,
       borrow_date: Math.floor(new Date(form.value.borrow_date).getTime() / 1000),
-      return_date: Math.floor(new Date(form.value.return_date).getTime() / 1000),
+      return_due: Math.floor(new Date(form.value.return_date).getTime() / 1000),
     })
     status.value = '✅ บันทึกข้อมูลการยืมสำเร็จ'
     form.value = {
@@ -49,10 +53,10 @@ const submit = async () => {
       phone: '',
       email: '',
       equipment_id: '',
-      teacher_name: '',
       borrow_date: new Date().toISOString().substring(0, 10),
       return_date: '',
     }
+    selectedAdmin.value = ''
   } catch (err) {
     console.error(err)
     status.value = '❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล'
@@ -61,7 +65,10 @@ const submit = async () => {
   }
 }
 
-onMounted(fetchEquipment)
+onMounted(() => {
+  fetchEquipment()
+  fetchAdmins()
+})
 </script>
 
 <template>
@@ -69,22 +76,22 @@ onMounted(fetchEquipment)
     <h1 class="text-2xl font-bold">แบบฟอร์มยืมครุภัณฑ์</h1>
 
     <form @submit.prevent="submit" class="space-y-3">
-      <input v-model="form.student_id"
-        class="w-full border px-3 py-2 rounded focus:outline-none focus:ring focus:ring-blue-300"
-        placeholder="รหัสนักศึกษา" required />
-
+      <input v-model="form.student_id" class="input" placeholder="รหัสนักศึกษา" required />
       <input v-model="form.full_name" class="input" placeholder="ชื่อ-สกุล" required />
       <input v-model="form.phone" class="input" placeholder="เบอร์โทร" required />
       <input v-model="form.email" class="input" type="email" placeholder="อีเมล" required />
 
       <select v-model="form.equipment_id" class="input" required>
-        <option disabled value="">-- เลือกครุภัณฑ์ที่ต้องการยืม --</option>
-        <option v-for="item in equipmentList.filter((e) => e.status === 'ว่าง')" :key="item.id" :value="item.id">
+        <option disabled value="">-- เลือกครุภัณฑ์ --</option>
+        <option v-for="item in equipmentList.filter(e => e.status === 'ว่าง')" :key="item.id" :value="item.id">
           {{ item.name }} - ({{ item.location }})
         </option>
       </select>
 
-      <input v-model="form.teacher_name" class="input" placeholder="อาจารย์ผู้ให้ยืม" required />
+      <select v-model="selectedAdmin" class="input" required>
+        <option disabled value="">-- เลือกอาจารย์ผู้ให้ยืม --</option>
+        <option v-for="admin in adminList" :key="admin.id" :value="admin.id">{{ admin.name }}</option>
+      </select>
 
       <div class="flex gap-2">
         <div class="w-1/2">
